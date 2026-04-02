@@ -188,7 +188,7 @@ class OdooManager:
                         'name': f'Cash/Bank - {platform}'
                     })
                 ],
-                'state': 'posted'
+                'state': 'draft'  # Create as draft first, can be posted manually in Odoo
             }
             
             # Create the journal entry
