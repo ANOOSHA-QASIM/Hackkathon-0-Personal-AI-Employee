@@ -122,14 +122,20 @@ def process_post_file(post_file: Path) -> Dict[str, bool]:
     # 1. LinkedIn (Phase 2 integration)
     print("\n[Orchestrator] === LinkedIn ===")
     try:
-        # LinkedIn uses function-based API
+        # LinkedIn uses function-based API - returns True/False
         result = publish_to_linkedin(content, media_path)
-        results['linkedin'] = (result.status == 'published')
-        log_social_action('linkedin', post_file.name, result.status, result.error)
-        print(f"[Orchestrator] LinkedIn result: {result.status}")
+        
+        # Convert result to boolean (handles both bool and truthy values)
+        linkedin_success = bool(result)
+        results['linkedin'] = linkedin_success
+        
+        # Log action
+        status = 'published' if linkedin_success else 'failed'
+        log_social_action('linkedin', post_file.name, status)
+        print(f"[Orchestrator] LinkedIn result: {status}")
 
         # AUTO-LOG: Log expense to Odoo after successful post
-        if result.status == 'published':
+        if linkedin_success:
             try:
                 odoo = get_odoo_manager()
                 odoo_result = odoo.log_post_expense(platform='linkedin', post_title=post_file.stem)
