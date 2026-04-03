@@ -1,173 +1,246 @@
 """
-Main Test Script - Phase 4 Grand Finale
+Unified Master Orchestrator - Continuous Automation Loop
 
-Tests the full integration:
-1. Posts to social media
-2. Automatically logs expense to Odoo
-3. Verifies Move ID is created
+Sequences all AI Employee workflows in a continuous loop:
+1. Gmail Monitor - Fetch new emails → /Needs_Action
+2. Auto-Drafter - Generate AI replies → /In_Progress
+3. Social Orchestrator - Post approved content → Odoo logging
+4. Gmail Sender - Send approved replies → Gmail
+5. CEO Briefer - Update daily report → CEO_Report.md
+
+Usage:
+    python main.py
+
+Features:
+    - Continuous loop with 5-minute delay
+    - Error isolation (one failure doesn't stop others)
+    - Automatic CEO report updates
+    - Graceful shutdown (Ctrl+C)
 """
 
 import sys
+import time
+import subprocess
 from pathlib import Path
+from datetime import datetime
 
-# Add src to path
+# Vault root
 VAULT_ROOT = Path(__file__).parent
-sys.path.insert(0, str(VAULT_ROOT / 'src'))
 
-from skills.odoo_manager import OdooManager
-from skills.social_orchestrator import process_post_file
+# Script paths
+SCRIPTS = {
+    'gmail_monitor': VAULT_ROOT / 'src' / 'gmail' / 'gmail_monitor.py',
+    'auto_drafter': VAULT_ROOT / 'src' / 'agent' / 'auto_drafter.py',
+    'social_orchestrator': VAULT_ROOT / 'src' / 'skills' / 'social_orchestrator.py',
+    'gmail_sender': VAULT_ROOT / 'src' / 'gmail' / 'gmail_sender.py',
+    'ceo_briefer': VAULT_ROOT / 'src' / 'skills' / 'ceo_briefer.py',
+}
+
+# Loop interval (5 minutes)
+LOOP_INTERVAL = 300  # seconds
 
 
-def test_odoo_connection():
-    """Test Odoo connection."""
-    print("=" * 60)
-    print("Phase 4 Grand Finale - Odoo Integration Test")
-    print("=" * 60)
-    print()
-    
-    print("[Test 1] Testing Odoo connection...")
-    odoo = OdooManager()
-    
-    if odoo.authenticate():
-        print(f"✓ Odoo Connected - UID: {odoo.uid}")
-        return True
-    else:
-        print("✗ Odoo Connection Failed")
-        print("  Please ensure:")
-        print("  1. Docker containers running: docker-compose ps")
-        print("  2. Odoo accessible at http://localhost:8069")
-        print("  3. Database 'odoo_vault' created")
+def run_script(name, script_path, args=None):
+    """
+    Run a Python script with error handling.
+
+    Args:
+        name: Script name for logging
+        script_path: Path to script
+        args: Optional list of arguments
+
+    Returns:
+        True if successful, False otherwise
+    """
+    if not script_path.exists():
+        print(f"[{name}] ⚠ Script not found: {script_path}")
         return False
 
-
-def test_journal_entry():
-    """Test creating a journal entry."""
     print()
-    print("[Test 2] Testing journal entry creation...")
-    odoo = OdooManager()
-    
-    if not odoo.uid:
-        odoo.authenticate()
-    
+    print("=" * 60)
+    print(f"[{name}] Starting...")
+    print("=" * 60)
+
     try:
-        result = odoo.create_journal_entry(
-            platform='test',
-            post_title='Grand Finale Test Post',
-            amount=500.0
+        # Build command
+        cmd = [sys.executable, str(script_path)]
+        if args:
+            cmd.extend(args)
+
+        # Run script
+        result = subprocess.run(
+            cmd,
+            cwd=str(VAULT_ROOT),
+            capture_output=False,  # Show output in real-time
+            timeout=600  # 10 minute timeout per script
         )
-        print(f"✓ Journal Entry Created - Move ID: {result.get('move_id')}")
-        return result.get('move_id')
-    except Exception as e:
-        print(f"✗ Journal Entry Failed: {e}")
-        return None
 
-
-def test_social_post():
-    """Test social media post with Odoo logging."""
-    print()
-    print("[Test 3] Testing social orchestrator with Odoo logging...")
-    print("  Note: This requires a test post in /Approved/Social/")
-    
-    # Create a test post file
-    approved_path = VAULT_ROOT / 'Approved' / 'Social'
-    approved_path.mkdir(parents=True, exist_ok=True)
-    
-    test_post_path = approved_path / 'test_grand_finale.md'
-    test_post_content = """---
-status: approved
-platforms:
-  - facebook
-content: |
-  Grand Finale Test Post!
-  
-  This post tests the full integration:
-  1. Social media posting
-  2. Automatic Odoo expense logging
-  
-  #Phase4 #GrandFinale #OdooIntegration
----
-"""
-    
-    with open(test_post_path, 'w') as f:
-        f.write(test_post_content)
-    
-    print(f"  Created test post: {test_post_path.name}")
-    print()
-    
-    # Process the post
-    try:
-        results = process_post_file(test_post_path)
-        
-        if results.get('meta', False):
-            print("✓ Social post successful")
+        if result.returncode == 0:
+            print(f"[{name}] ✓ Completed successfully")
             return True
         else:
-            print("⚠ Social post completed with warnings")
-            return True  # Still consider it a test success
-    except Exception as e:
-        print(f"✗ Social post test failed: {e}")
+            print(f"[{name}] ✗ Failed with exit code {result.returncode}")
+            return False
+
+    except subprocess.TimeoutExpired:
+        print(f"[{name}] ⏱ Timeout after 10 minutes")
         return False
-    finally:
-        # Clean up test post (move to Done or remove)
-        done_path = VAULT_ROOT / 'Done' / 'Social' / test_post_path.name
-        if test_post_path.exists():
-            try:
-                done_path.parent.mkdir(parents=True, exist_ok=True)
-                test_post_path.rename(done_path)
-                print(f"  Test post moved to /Done")
-            except:
-                test_post_path.unlink()
-                print(f"  Test post cleaned up")
+    except KeyboardInterrupt:
+        print(f"\n[{name}] ⚠ Interrupted by user")
+        raise
+    except Exception as e:
+        print(f"[{name}] ✗ Error: {e}")
+        return False
+
+
+def run_cycle():
+    """
+    Run one complete automation cycle.
+
+    Returns:
+        Dictionary with success status for each step
+    """
+    results = {
+        'gmail_monitor': False,
+        'auto_drafter': False,
+        'social_orchestrator': False,
+        'gmail_sender': False,
+        'ceo_briefer': False
+    }
+
+    print()
+    print("╔" + "=" * 58 + "╗")
+    print("║" + " " * 10 + "AI EMPLOYEE - AUTOMATION CYCLE" + " " * 17 + "║")
+    print("║" + f"  Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}" + " " * 26 + "║")
+    print("╚" + "=" * 58 + "╝")
+
+    # Step 1: Gmail Monitor
+    try:
+        results['gmail_monitor'] = run_script(
+            'Gmail Monitor',
+            SCRIPTS['gmail_monitor']
+        )
+    except KeyboardInterrupt:
+        raise
+    except Exception as e:
+        print(f"[Gmail Monitor] ✗ Error: {e}")
+
+    # Step 2: Auto-Drafter
+    try:
+        results['auto_drafter'] = run_script(
+            'Auto-Drafter',
+            SCRIPTS['auto_drafter']
+        )
+    except KeyboardInterrupt:
+        raise
+    except Exception as e:
+        print(f"[Auto-Drafter] ✗ Error: {e}")
+
+    # Step 3: Social Orchestrator
+    try:
+        results['social_orchestrator'] = run_script(
+            'Social Orchestrator',
+            SCRIPTS['social_orchestrator'],
+            args=['--once']  # Run once, not continuous
+        )
+    except KeyboardInterrupt:
+        raise
+    except Exception as e:
+        print(f"[Social Orchestrator] ✗ Error: {e}")
+
+    # Step 4: Gmail Sender
+    try:
+        results['gmail_sender'] = run_script(
+            'Gmail Sender',
+            SCRIPTS['gmail_sender']
+        )
+    except KeyboardInterrupt:
+        raise
+    except Exception as e:
+        print(f"[Gmail Sender] ✗ Error: {e}")
+
+    # Step 5: CEO Briefer (only if any step succeeded)
+    if any([results['gmail_monitor'], results['auto_drafter'],
+            results['social_orchestrator'], results['gmail_sender']]):
+        try:
+            results['ceo_briefer'] = run_script(
+                'CEO Briefer',
+                SCRIPTS['ceo_briefer']
+            )
+        except KeyboardInterrupt:
+            raise
+        except Exception as e:
+            print(f"[CEO Briefer] ✗ Error: {e}")
+
+    return results
+
+
+def print_cycle_summary(results):
+    """Print summary of cycle results."""
+    print()
+    print("=" * 60)
+    print("CYCLE SUMMARY")
+    print("=" * 60)
+
+    for name, success in results.items():
+        status = "✓ PASS" if success else "✗ FAIL"
+        print(f"  {name:25} {status}")
+
+    success_count = sum(1 for v in results.values() if v)
+    total_count = len(results)
+
+    print()
+    print(f"Success: {success_count}/{total_count} steps completed")
+    print("=" * 60)
 
 
 def main():
-    """Run all tests."""
-    print()
-    
-    # Test 1: Odoo connection
-    odoo_connected = test_odoo_connection()
-    
-    # Test 2: Journal entry
-    move_id = None
-    if odoo_connected:
-        move_id = test_journal_entry()
-    
-    # Test 3: Social post with Odoo logging
-    social_success = False
-    if odoo_connected and move_id:
-        social_success = test_social_post()
-    
-    # Summary
-    print()
+    """Main continuous loop."""
     print("=" * 60)
-    print("Grand Finale Test Results")
+    print("AI Employee - Unified Master Orchestrator")
     print("=" * 60)
-    print(f"Odoo Connection:     {'✓ PASS' if odoo_connected else '✗ FAIL'}")
-    print(f"Journal Entry:       {'✓ PASS' if move_id else '✗ FAIL'}")
-    if move_id:
-        print(f"  Move ID: {move_id}")
-    print(f"Social Integration:  {'✓ PASS' if social_success else '⚠ SKIPPED'}")
     print()
-    
-    if odoo_connected and move_id:
-        print("🎉 Phase 4 COMPLETE!")
-        print("   - Odoo Manager working")
-        print("   - Journal entries created")
-        print("   - Social orchestrator integrated")
+    print("Starting continuous automation loop...")
+    print(f"Cycle interval: {LOOP_INTERVAL // 60} minutes")
+    print("Press Ctrl+C to stop")
+    print()
+
+    cycle_count = 0
+
+    try:
+        while True:
+            cycle_count += 1
+
+            # Run one cycle
+            try:
+                results = run_cycle()
+                print_cycle_summary(results)
+            except KeyboardInterrupt:
+                print("\n⚠ Cycle interrupted")
+                break
+            except Exception as e:
+                print(f"\n✗ Cycle error: {e}")
+
+            # Wait for next cycle
+            print()
+            print(f"Waiting {LOOP_INTERVAL // 60} minutes for next cycle...")
+            print(f"Next cycle: {(datetime.now().timestamp() + LOOP_INTERVAL):.0f}")
+            print("(Press Ctrl+C to stop)")
+            print()
+
+            time.sleep(LOOP_INTERVAL)
+
+    except KeyboardInterrupt:
         print()
-        print("Next: Verify in Odoo UI")
-        print("  1. Open: http://localhost:8069")
-        print("  2. Go to: Invoicing → Accounting → Journal Entries")
-        print(f"  3. Find Move ID: {move_id}")
+        print("=" * 60)
+        print("SHUTTING DOWN")
+        print("=" * 60)
+        print(f"Total cycles completed: {cycle_count}")
         print()
-        return True
-    else:
-        print("⚠ Phase 4 needs attention")
-        print("  Please check error messages above")
+        print("Graceful shutdown complete")
+        print("AI Employee is now sleeping... 💤")
         print()
-        return False
 
 
 if __name__ == '__main__':
-    success = main()
-    sys.exit(0 if success else 1)
+    main()
