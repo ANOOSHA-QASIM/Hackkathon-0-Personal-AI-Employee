@@ -23,7 +23,8 @@ sys.path.insert(0, str(VAULT_ROOT / 'src'))
 from skills.meta_poster import MetaPoster
 from skills.twitter_poster import TwitterPoster
 from skills.odoo_manager import OdooManager
-# LinkedIn poster will be imported from Phase 2
+from linkedin.linkedin_poster import publish_to_linkedin
+# LinkedIn poster imported from Phase 2 (function-based API)
 
 # Initialize Odoo Manager (lazy initialization on first use)
 _odoo_manager = None
@@ -121,13 +122,23 @@ def process_post_file(post_file: Path) -> Dict[str, bool]:
     # 1. LinkedIn (Phase 2 integration)
     print("\n[Orchestrator] === LinkedIn ===")
     try:
-        # UPDATE LINKEDIN INTEGRATION: Integrate working Phase 2 LinkedIn logic
-        from linkedin.linkedin_poster import LinkedInPoster
-        linkedin = LinkedInPoster()
-        result = linkedin.post(content, media_path)  # FIX TWITTER CRASH: Ensure correct arguments
+        # LinkedIn uses function-based API
+        result = publish_to_linkedin(content, media_path)
         results['linkedin'] = (result.status == 'published')
         log_social_action('linkedin', post_file.name, result.status, result.error)
         print(f"[Orchestrator] LinkedIn result: {result.status}")
+
+        # AUTO-LOG: Log expense to Odoo after successful post
+        if result.status == 'published':
+            try:
+                odoo = get_odoo_manager()
+                odoo_result = odoo.log_post_expense(platform='linkedin', post_title=post_file.stem)
+                if odoo_result:
+                    print(f"[Orchestrator] ✓ Odoo expense logged - Move ID: {odoo_result.get('move_id')}")
+                else:
+                    print("[Orchestrator] ⚠ Odoo logging skipped (connection failed)")
+            except Exception as odoo_error:
+                print(f"[Orchestrator] ⚠ Odoo logging failed: {odoo_error}")
     except ImportError:
         print("[Orchestrator] LinkedIn module not available (Phase 2 may not be complete)")
         results['linkedin'] = False
