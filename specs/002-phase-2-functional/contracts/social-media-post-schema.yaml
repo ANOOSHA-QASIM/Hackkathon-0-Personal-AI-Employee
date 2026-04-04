@@ -1,0 +1,159 @@
+# Social Media Post Schema
+
+**Version**: 1.0.0  
+**Description**: YAML frontmatter schema for social media post files
+
+## Schema Definition
+
+```yaml
+type: object
+required:
+  - status
+  - platform
+  - content
+  - created_at
+  - created_by
+  - hitl_approved
+
+properties:
+  status:
+    type: string
+    enum: [draft, approved, published, rejected, scheduled]
+    description: Current state of the post
+    
+  platform:
+    type: string
+    enum: [linkedin, twitter, facebook, instagram]
+    description: Target social media platform
+    
+  content:
+    type: string
+    minLength: 1
+    maxLength: 3000
+    description: Post text content
+    
+  media_path:
+    type: string
+    description: Relative path to image/media file
+    example: ./media/announcement.png
+    
+  scheduled_time:
+    type: string
+    format: date-time
+    description: When to publish the post
+    example: 2026-03-29T09:00:00Z
+    
+  created_at:
+    type: string
+    format: date-time
+    description: When draft was created
+    example: 2026-03-28T14:00:00Z
+    
+  created_by:
+    type: string
+    description: Agent or user who created draft
+    example: linkedin-agent
+    
+  hitl_approved:
+    type: boolean
+    description: HITL approval status
+    default: false
+    
+  hitl_approved_by:
+    type: string
+    description: User who approved the post
+    example: user
+    
+  hitl_approved_at:
+    type: string
+    format: date-time
+    description: When post was approved
+    example: 2026-03-28T15:00:00Z
+    
+  published_at:
+    type: string
+    format: date-time
+    description: When post was published
+    example: 2026-03-29T09:00:00Z
+    
+  tags:
+    type: array
+    items:
+      type: string
+    description: Post categorization tags
+    example: [announcement, product-launch, automation]
+```
+
+## Example Post
+
+```markdown
+---
+status: draft
+platform: linkedin
+content: |
+  Excited to announce our new AI Employee automation system!
+  
+  This system combines Gmail monitoring, task management, and automated posting to help businesses scale efficiently.
+  
+  #Automation #AI #Productivity
+media_path: ./media/announcement-dark.png
+scheduled_time: 2026-03-29T09:00:00Z
+created_at: 2026-03-28T14:00:00Z
+created_by: linkedin-agent
+hitl_approved: false
+tags:
+  - announcement
+  - product-launch
+  - automation
+---
+
+## Post Preview
+
+**Platform**: LinkedIn
+**Scheduled**: 2026-03-29 09:00 AM
+**Media**: See attached image
+
+---
+
+## HITL Approval
+
+- [ ] Approved (move to /Approved)
+- [ ] Rejected (move to /Rejected with feedback)
+
+**Feedback**: 
+```
+
+## Validation Rules
+
+1. `status` must be one of: `draft`, `approved`, `published`, `rejected`, `scheduled`
+2. `platform` must be one of: `linkedin`, `twitter`, `facebook`, `instagram`
+3. `content` must be 1-3000 characters (LinkedIn limit: 3000)
+4. If `media_path` present, image must follow minimalist design rules
+5. `hitl_approved` must be `true` before publishing (enforced)
+6. If `status` is `approved`, then `hitl_approved_by` and `hitl_approved_at` must be present
+7. If `scheduled_time` present, post must publish within 2 minutes of scheduled time
+
+## State Transitions
+
+```mermaid
+stateDiagram-v2
+    [*] --> draft
+    draft --> approved: User moves to /Approved
+    draft --> rejected: User moves to /Rejected
+    draft --> scheduled: Scheduled for future
+    approved --> published: LinkedIn agent publishes
+    scheduled --> published: Scheduled time arrives
+    rejected --> draft: User revises
+    published --> [*]
+```
+
+## Minimalist Design Rules
+
+For posts with images (`media_path` present):
+
+1. **Theme**: Dark background (#1a1a1a or darker)
+2. **Typography**: Clean, readable fonts (Arial, Helvetica, Inter)
+3. **Colors**: Monochrome + single accent color only
+4. **Images**: No human icons/avatars
+5. **Logo**: Company logo in corner (optional)
+6. **Text on Image**: Minimal (headline only, full details in post content)

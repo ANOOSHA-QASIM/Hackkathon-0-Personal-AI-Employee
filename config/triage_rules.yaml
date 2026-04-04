@@ -1,0 +1,45 @@
+# Triage Rules for Communication Priority Classification
+# Last updated: 2026-03-28
+
+# High-priority keywords (subject line matching)
+priority_keywords:
+  high:
+    - urgent
+    - asap
+    - invoice
+    - payment
+    - emergency
+    - action required
+    - overdue
+    - immediate
+    - time-sensitive
+    - deadline
+  normal: []
+  low:
+    - newsletter
+    - notification
+    - update
+    - digest
+    - unsubscribe
+    - promotional
+    - marketing
+
+# VIP senders (always high priority)
+vip_senders:
+  # Add your VIP senders here
+  # Example:
+  # - client@company.com
+  # - boss@company.com
+  # - partner@business.com
+
+# Low-priority domains (newsletters, notifications)
+low_priority_domains:
+  # Add domains that should be marked as low priority
+  # Example:
+  # - newsletter.company.com
+  # - notifications.github.com
+  # - updates.social.com
+
+# Configuration metadata
+updated_at: 2026-03-28T00:00:00Z
+version: 1.0

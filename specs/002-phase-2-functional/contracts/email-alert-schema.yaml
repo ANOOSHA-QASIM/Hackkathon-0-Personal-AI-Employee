@@ -1,0 +1,129 @@
+# Email Alert Schema
+
+**Version**: 1.0.0  
+**Description**: YAML frontmatter schema for email alert files in `/Needs_Action`
+
+## Schema Definition
+
+```yaml
+type: object
+required:
+  - status
+  - type
+  - sender
+  - subject
+  - received_timestamp
+  - message_id
+  - priority
+  - processed
+
+properties:
+  status:
+    type: string
+    enum: [Needs_Action, In_Progress, Approved, Rejected, Done]
+    description: Current state of the email alert
+    
+  type:
+    type: string
+    const: email_alert
+    description: Alert type identifier
+    
+  sender:
+    type: string
+    format: email
+    description: Sender email address
+    example: client@company.com
+    
+  sender_name:
+    type: string
+    description: Sender display name
+    example: John Doe
+    
+  subject:
+    type: string
+    minLength: 1
+    maxLength: 500
+    description: Email subject line
+    
+  received_timestamp:
+    type: string
+    format: date-time
+    description: When email arrived in Gmail
+    example: 2026-03-28T10:30:00Z
+    
+  message_id:
+    type: string
+    description: Gmail message ID for deduplication
+    example: <abc123@mail.gmail.com>
+    
+  priority:
+    type: string
+    enum: [high, normal, low]
+    description: Priority level assigned by triage
+    
+  tags:
+    type: array
+    items:
+      type: string
+    description: Categorization tags
+    example: [invoice, accounting, urgent]
+    
+  processed:
+    type: boolean
+    description: Whether email was responded to
+    default: false
+```
+
+## Example Alert
+
+```markdown
+---
+status: Needs_Action
+type: email_alert
+sender: client@company.com
+sender_name: John Doe
+subject: Invoice #2026-001 Payment Required
+received_timestamp: 2026-03-28T10:30:00Z
+message_id: <abc123@mail.gmail.com>
+priority: high
+tags:
+  - invoice
+  - accounting
+  - urgent
+processed: false
+---
+
+## Email Content
+
+**From**: John Doe <client@company.com>
+**Date**: 2026-03-28 10:30 AM
+
+Hi,
+
+Please find attached invoice #2026-001 for payment.
+
+Best regards,
+John
+```
+
+## Validation Rules
+
+1. `status` must be one of: `Needs_Action`, `In_Progress`, `Approved`, `Rejected`, `Done`
+2. `type` must be exactly `email_alert`
+3. `sender` must be valid email format
+4. `received_timestamp` must be valid ISO 8601 format
+5. `message_id` must be unique (used for deduplication)
+6. `priority` must be one of: `high`, `normal`, `low`
+7. If `priority` is `high`, `tags` should include at least one high-priority tag
+8. `processed` defaults to `false`
+
+## State Transitions
+
+```mermaid
+stateDiagram-v2
+    [*] --> Needs_Action
+    Needs_Action --> In_Progress: User claims
+    Needs_Action --> Done: Handled without claim
+    In_Progress --> Done: Email responded to
+    Done --> [*]
+```
