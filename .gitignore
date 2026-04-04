@@ -43,6 +43,13 @@ ENV/
 # Browser session data (contains login cookies)
 .browser_data/
 
+# OAuth credentials (Gmail, Google APIs)
+credentials.json
+token.json
+*.token
+*.secret
+*.secret.json
+
 # Logs
 *.log
 Logs/
@@ -72,6 +79,13 @@ nosetests.xml
 coverage.xml
 *.cover
 *.py,cover
+
+.env
+.browser_data/
+credentials.json
+token.json
+__pycache__/
+*.pyc
 
 # Jupyter Notebook
 .ipynb_checkpoints

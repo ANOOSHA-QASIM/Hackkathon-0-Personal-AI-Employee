@@ -1,0 +1,26 @@
+# Digital FTE Vault - Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# Phase 1: Foundation
+# File system monitoring
+watchdog>=3.0.0
+
+# YAML frontmatter parsing
+pyyaml>=6.0
+
+# Environment variable management
+python-dotenv>=1.0.0
+
+# Phase 2: Functional
+# Gmail API integration
+google-auth-oauthlib>=1.0.0
+google-api-python-client>=2.0.0
+
+# LinkedIn browser automation
+playwright>=1.40.0
+
+# HTTP requests (for Groq API)
+requests>=2.31.0
+
+# Testing (optional)
+pytest>=7.0.0

@@ -1,0 +1,171 @@
+# Social Media Post Schema
+
+**Version**: 1.0.0  
+**Description**: YAML frontmatter schema for social media post files in `/Approved/Social/`
+
+## Schema Definition
+
+```yaml
+type: object
+required:
+  - status
+  - platforms
+  - content
+  - created_at
+  - created_by
+
+properties:
+  status:
+    type: string
+    enum: [draft, approved, published, failed]
+    description: Current state of the post
+    
+  platforms:
+    type: array
+    items:
+      type: string
+      enum: [linkedin, facebook, instagram, twitter]
+    minItems: 1
+    description: Target platforms for posting
+    
+  content:
+    type: string
+    minLength: 1
+    maxLength: 3000
+    description: Post text content (LinkedIn limit)
+    
+  media_path:
+    type: string
+    description: Relative path to image/media file
+    example: ./media/post-image.png
+    
+  scheduled_time:
+    type: string
+    format: date-time
+    description: When to publish the post
+    example: 2026-03-29T09:00:00Z
+    
+  created_at:
+    type: string
+    format: date-time
+    description: When draft was created
+    example: 2026-03-28T14:00:00Z
+    
+  created_by:
+    type: string
+    description: Agent or user who created draft
+    example: user
+    
+  platform_results:
+    type: object
+    description: Per-platform posting results
+    properties:
+      linkedin:
+        $ref: '#/definitions/PlatformResult'
+      facebook:
+        $ref: '#/definitions/PlatformResult'
+      instagram:
+        $ref: '#/definitions/PlatformResult'
+      twitter:
+        $ref: '#/definitions/PlatformResult'
+
+definitions:
+  PlatformResult:
+    type: object
+    properties:
+      status:
+        type: string
+        enum: [pending, published, failed, retrying]
+        description: Post status on this platform
+      url:
+        type: string
+        description: Post URL (if published)
+      published_at:
+        type: string
+        format: date-time
+        description: When published
+      error:
+        type: string
+        description: Error message (if failed)
+      retry_count:
+        type: integer
+        description: Number of retry attempts
+      next_retry_at:
+        type: string
+        format: date-time
+        description: When next retry allowed
+```
+
+## Example Post
+
+```markdown
+---
+status: approved
+platforms:
+  - linkedin
+  - facebook
+  - instagram
+  - twitter
+content: |
+  Excited to announce our new AI Employee automation system!
+  
+  This system combines Gmail monitoring, task management, and automated posting to help businesses scale efficiently.
+  
+  #Automation #AI #Productivity
+media_path: ./media/announcement-dark.png
+created_at: 2026-03-28T14:00:00Z
+created_by: user
+platform_results: {}
+---
+
+## Post Preview
+
+**Platforms**: LinkedIn, Facebook, Instagram, Twitter
+**Scheduled**: Immediate (upon approval)
+**Media**: See attached image
+
+---
+
+## HITL Approval
+
+**To Approve**: Move this file to `/Approved/Social/` folder
+
+**To Reject**: Move this file to `/Rejected/` folder with feedback below
+
+- [ ] Approved (move to /Approved/Social)
+- [ ] Rejected (move to /Rejected with feedback)
+
+**Feedback**: 
+```
+
+## Validation Rules
+
+1. `status` must be one of: `draft`, `approved`, `published`, `failed`
+2. `platforms` must contain at least one platform from: `linkedin`, `facebook`, `instagram`, `twitter`
+3. `content` must be 1-3000 characters (LinkedIn limit)
+4. If `media_path` present, image must follow minimalist design rules (Constitution Principle X)
+5. `platform_results` tracks per-platform status independently
+
+## Platform-Specific Content Limits
+
+| Platform | Character Limit | Optimal Length | Image Limits |
+|----------|----------------|----------------|--------------|
+| LinkedIn | 3,000 | 150-300 | JPG, PNG (max 5MB) |
+| Facebook | 63,206 | 250-400 | JPG, PNG (max 15MB) |
+| Instagram | 2,200 | 138-150 | JPG, PNG (max 8MB, square) |
+| Twitter | 280 (per tweet) | 200-250 | JPG, PNG (max 5MB) |
+
+## State Transitions
+
+```mermaid
+stateDiagram-v2
+    [*] --> draft
+    draft --> approved: User moves to /Approved/Social
+    approved --> published: All platforms succeed
+    approved --> failed: All platforms fail (3 retries)
+    approved --> partial: Some platforms succeed
+    failed --> draft: User edits and resubmits
+    partial --> published: Remaining platforms succeed
+    partial --> failed: Remaining platforms fail
+    published --> [*]
+```

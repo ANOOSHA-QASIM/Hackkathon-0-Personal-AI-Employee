@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://digital-fte-2026.local/schemas/audit-log-entry.json",
+  "title": "Audit Log Entry",
+  "description": "Schema for entries in /Logs/YYYY-MM-DD.json audit log files",
+  "type": "object",
+  "required": ["timestamp", "action_type", "agent_id", "file_path", "status"],
+  "properties": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when action occurred",
+      "examples": ["2026-03-28T10:30:00Z"]
+    },
+    "action_type": {
+      "type": "string",
+      "enum": [
+        "file_detected",
+        "metadata_created",
+        "file_moved",
+        "task_created",
+        "error",
+        "dashboard_updated",
+        "handbook_updated"
+      ],
+      "description": "Type of action performed"
+    },
+    "agent_id": {
+      "type": "string",
+      "description": "Identifier of the agent that performed the action",
+      "examples": ["filesystem-watcher", "email-agent", "audit-agent"]
+    },
+    "file_path": {
+      "type": "string",
+      "description": "Path to the affected file",
+      "examples": ["/Inbox/invoice.pdf", "/Needs_Action/20260328_103000_invoice.md"]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "completed", "blocked", "error"],
+      "description": "Result status of the action"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional context about the action",
+      "properties": {
+        "original_name": {
+          "type": "string",
+          "description": "Original filename (for file_detected actions)"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "description": "File size in bytes"
+        },
+        "destination_path": {
+          "type": "string",
+          "description": "Destination path (for file_moved actions)"
+        }
+      }
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Error details (required if status is 'error')",
+      "examples": ["Permission denied: /Needs_Action", "File is corrupted"]
+    }
+  },
+  "additionalProperties": false,
+  "if": {
+    "properties": {
+      "status": {
+        "const": "error"
+      }
+    }
+  },
+  "then": {
+    "required": ["error_message"]
+  }
+}
