@@ -275,16 +275,23 @@ def publish_to_linkedin(content: str, media_path: str = None):
                 page.wait_for_timeout(3000)
                 time.sleep(1)
 
-                # Upload media if provided
+                # Upload media if provided (FORCE IMAGE UPLOAD)
                 if media_path:
                     print(f"[LinkedIn] Uploading media: {media_path}")
 
                     # Check if file exists
                     if not Path(media_path).exists():
                         print(f"[LinkedIn] WARNING: Media file not found: {media_path}")
+                        print("[LinkedIn] Continuing with text-only post")
                     else:
-                        # Click media button
+                        # ERROR HANDLING: Try multiple selectors for media button
                         media_button = page.locator('button[aria-label="Media"]').first
+                        if media_button.count() == 0:
+                            # Fallback selectors
+                            media_button = page.locator('button[aria-label="Add media"]').first
+                        if media_button.count() == 0:
+                            media_button = page.locator('button[aria-label*="media"]').first
+                        
                         if media_button.count() > 0:
                             media_button.click(timeout=90000)
                             time.sleep(1)
@@ -299,8 +306,10 @@ def publish_to_linkedin(content: str, media_path: str = None):
                                 print("[LinkedIn] Media uploaded successfully")
                             except Exception as e:
                                 print(f"[LinkedIn] WARNING: Could not upload media: {e}")
+                                print("[LinkedIn] Continuing with text-only post")
                         else:
                             print("[LinkedIn] WARNING: Could not find media button")
+                            print("[LinkedIn] Continuing with text-only post")
 
                 # Click Post button with robust multi-selector approach
                 print("[LinkedIn] Publishing post...")

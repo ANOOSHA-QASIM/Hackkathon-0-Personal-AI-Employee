@@ -150,26 +150,45 @@ class TwitterPoster(BasePoster):
                     textarea.fill(content, timeout=120000)
                     page.wait_for_timeout(3000)  # HUMAN-LIKE TIMING
 
-                    # Upload image if media_path provided (synced across platforms)
+                    # Upload image if media_path provided (FORCE IMAGE UPLOAD)
                     if media_path and Path(media_path).exists():
                         print(f"[Twitter] Uploading media: {media_path}")
+                        # ERROR HANDLING: Try multiple selectors for media button
                         media_btn = page.locator('[data-testid="toolBar-ImageButton"]').first
+                        if media_btn.count() == 0:
+                            media_btn = page.locator('button[data-testid="app-bar-close"]').first  # Alternative
+                        if media_btn.count() == 0:
+                            # Direct file input approach
+                            media_btn = page.locator('input[type="file"]').first
+                        
                         if media_btn.count() > 0:
-                            media_btn.click(timeout=120000)
-                            page.wait_for_timeout(3000)  # HUMAN-LIKE TIMING
-                            file_input = page.locator('input[type="file"][accept*="image"]')
-                            if file_input.count() > 0:
-                                file_input.set_files(media_path)
-                                # WAIT LOGIC: 3-second delay to ensure image is fully attached
-                                print("[Twitter] Waiting 3 seconds for image to attach...")
-                                page.wait_for_timeout(3000)
-                                print("[Twitter] Media uploaded successfully")
+                            # Check if it's a button or input
+                            tag_name = media_btn.evaluate("el => el.tagName")
+                            if tag_name == 'INPUT':
+                                # Direct file input
+                                media_btn.set_files(media_path)
                             else:
-                                print("[Twitter] WARNING: Could not find file input")
+                                # Click button then handle file chooser
+                                media_btn.click(timeout=120000)
+                                page.wait_for_timeout(3000)
+                                file_input = page.locator('input[type="file"][accept*="image"]')
+                                if file_input.count() > 0:
+                                    file_input.set_files(media_path)
+                                else:
+                                    # Fallback: try any file input
+                                    file_input = page.locator('input[type="file"]').first
+                                    if file_input.count() > 0:
+                                        file_input.set_files(media_path)
+                            
+                            # WAIT LOGIC: 3-second delay to ensure image is fully attached
+                            print("[Twitter] Waiting 3 seconds for image to attach...")
+                            page.wait_for_timeout(3000)
+                            print("[Twitter] Media uploaded successfully")
                         else:
-                            print("[Twitter] WARNING: Could not find media button")
+                            print("[Twitter] WARNING: Could not find media button, posting text only")
                     elif media_path:
                         print(f"[Twitter] WARNING: Media path provided but file not found: {media_path}")
+                        print("[Twitter] Continuing with text-only post")
 
                     # TWITTER STRICT FIX: Use Ctrl+Enter and wait for URL change
                     print("[Twitter] Publishing with Ctrl+Enter...")
