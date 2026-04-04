@@ -1,12 +1,9 @@
 """
-Unified Master Orchestrator - Continuous Automation Loop
+Unified Master Orchestrator - Social Media & Odoo Automation
 
-Sequences all AI Employee workflows in a continuous loop:
-1. Gmail Monitor - Fetch new emails → /Needs_Action
-2. Auto-Drafter - Generate AI replies → /In_Progress
-3. Social Orchestrator - Post approved content → Odoo logging
-4. Gmail Sender - Send approved replies → Gmail
-5. CEO Briefer - Update daily report → CEO_Report.md
+Continuous automation loop for social media posting and financial tracking:
+1. Social Orchestrator - Post approved content → Odoo logging
+2. CEO Briefer - Update daily report → CEO_Report.md
 
 Usage:
     python main.py
@@ -16,6 +13,7 @@ Features:
     - Error isolation (one failure doesn't stop others)
     - Automatic CEO report updates
     - Graceful shutdown (Ctrl+C)
+    - Odoo expense logging for all platforms
 """
 
 import sys
@@ -27,12 +25,9 @@ from datetime import datetime
 # Vault root
 VAULT_ROOT = Path(__file__).parent
 
-# Script paths
+# Script Paths (Social Media + Odoo only)
 SCRIPTS = {
-    'gmail_monitor': VAULT_ROOT / 'src' / 'gmail' / 'gmail_monitor.py',
-    'auto_drafter': VAULT_ROOT / 'src' / 'agent' / 'auto_drafter.py',
     'social_orchestrator': VAULT_ROOT / 'src' / 'skills' / 'social_orchestrator.py',
-    'gmail_sender': VAULT_ROOT / 'src' / 'gmail' / 'gmail_sender.py',
     'ceo_briefer': VAULT_ROOT / 'src' / 'skills' / 'ceo_briefer.py',
 }
 
@@ -101,42 +96,17 @@ def run_cycle():
         Dictionary with success status for each step
     """
     results = {
-        'gmail_monitor': False,
-        'auto_drafter': False,
         'social_orchestrator': False,
-        'gmail_sender': False,
         'ceo_briefer': False
     }
 
     print()
     print("╔" + "=" * 58 + "╗")
-    print("║" + " " * 10 + "AI EMPLOYEE - AUTOMATION CYCLE" + " " * 17 + "║")
+    print("║" + " " * 8 + "AI EMPLOYEE - SOCIAL MEDIA CYCLE" + " " * 16 + "║")
     print("║" + f"  Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}" + " " * 26 + "║")
     print("╚" + "=" * 58 + "╝")
 
-    # Step 1: Gmail Monitor
-    try:
-        results['gmail_monitor'] = run_script(
-            'Gmail Monitor',
-            SCRIPTS['gmail_monitor']
-        )
-    except KeyboardInterrupt:
-        raise
-    except Exception as e:
-        print(f"[Gmail Monitor] ✗ Error: {e}")
-
-    # Step 2: Auto-Drafter
-    try:
-        results['auto_drafter'] = run_script(
-            'Auto-Drafter',
-            SCRIPTS['auto_drafter']
-        )
-    except KeyboardInterrupt:
-        raise
-    except Exception as e:
-        print(f"[Auto-Drafter] ✗ Error: {e}")
-
-    # Step 3: Social Orchestrator
+    # Step 1: Social Orchestrator (Posts to LinkedIn, Meta, Twitter + Odoo logging)
     try:
         results['social_orchestrator'] = run_script(
             'Social Orchestrator',
@@ -148,20 +118,8 @@ def run_cycle():
     except Exception as e:
         print(f"[Social Orchestrator] ✗ Error: {e}")
 
-    # Step 4: Gmail Sender
-    try:
-        results['gmail_sender'] = run_script(
-            'Gmail Sender',
-            SCRIPTS['gmail_sender']
-        )
-    except KeyboardInterrupt:
-        raise
-    except Exception as e:
-        print(f"[Gmail Sender] ✗ Error: {e}")
-
-    # Step 5: CEO Briefer (only if any step succeeded)
-    if any([results['gmail_monitor'], results['auto_drafter'],
-            results['social_orchestrator'], results['gmail_sender']]):
+    # Step 2: CEO Briefer (Update report if social orchestrator succeeded)
+    if results['social_orchestrator']:
         try:
             results['ceo_briefer'] = run_script(
                 'CEO Briefer',
@@ -197,7 +155,7 @@ def print_cycle_summary(results):
 def main():
     """Main continuous loop."""
     print("=" * 60)
-    print("AI Employee - Unified Master Orchestrator")
+    print("AI Employee - Social Media & Odoo Orchestrator")
     print("=" * 60)
     print()
     print("Starting continuous automation loop...")
