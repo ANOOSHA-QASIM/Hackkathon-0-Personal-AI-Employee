@@ -150,7 +150,7 @@ class TwitterPoster(BasePoster):
                     textarea.fill(content, timeout=120000)
                     page.wait_for_timeout(3000)  # HUMAN-LIKE TIMING
 
-                    # Upload image if media_path provided
+                    # Upload image if media_path provided (synced across platforms)
                     if media_path and Path(media_path).exists():
                         print(f"[Twitter] Uploading media: {media_path}")
                         media_btn = page.locator('[data-testid="toolBar-ImageButton"]').first
@@ -160,12 +160,16 @@ class TwitterPoster(BasePoster):
                             file_input = page.locator('input[type="file"][accept*="image"]')
                             if file_input.count() > 0:
                                 file_input.set_files(media_path)
-                                page.wait_for_timeout(5000)  # Wait for upload
+                                # WAIT LOGIC: 3-second delay to ensure image is fully attached
+                                print("[Twitter] Waiting 3 seconds for image to attach...")
+                                page.wait_for_timeout(3000)
                                 print("[Twitter] Media uploaded successfully")
                             else:
                                 print("[Twitter] WARNING: Could not find file input")
                         else:
                             print("[Twitter] WARNING: Could not find media button")
+                    elif media_path:
+                        print(f"[Twitter] WARNING: Media path provided but file not found: {media_path}")
 
                     # TWITTER STRICT FIX: Use Ctrl+Enter and wait for URL change
                     print("[Twitter] Publishing with Ctrl+Enter...")

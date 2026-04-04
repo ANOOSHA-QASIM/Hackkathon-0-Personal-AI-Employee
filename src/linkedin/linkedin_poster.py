@@ -293,10 +293,14 @@ def publish_to_linkedin(content: str, media_path: str = None):
                             try:
                                 file_chooser = page.wait_for_event('filechooser', timeout=90000)
                                 file_chooser.set_files(media_path)
-                                print("[LinkedIn] Media uploaded")
-                                time.sleep(2)
+                                # WAIT LOGIC: 3-second delay to ensure image is fully attached
+                                print("[LinkedIn] Waiting 3 seconds for image to attach...")
+                                time.sleep(3)
+                                print("[LinkedIn] Media uploaded successfully")
                             except Exception as e:
                                 print(f"[LinkedIn] WARNING: Could not upload media: {e}")
+                        else:
+                            print("[LinkedIn] WARNING: Could not find media button")
 
                 # Click Post button with robust multi-selector approach
                 print("[LinkedIn] Publishing post...")
