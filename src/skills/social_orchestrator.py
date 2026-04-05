@@ -8,6 +8,7 @@ Logs all actions to /Logs/social_audit.json with timestamps.
 import os
 import sys
 import json
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List
@@ -238,10 +239,14 @@ def scan_approved_social():
         all_success = all(results.values()) if results else False
 
         if all_success:
-            # Move to /Done/Social/
+            # Move to /Done/Social/ using shutil.move for Windows compatibility
             done_path = DONE_SOCIAL_PATH / post_file.name
-            post_file.rename(done_path)
-            print(f"\n[Orchestrator] ✓ Moved to /Done: {post_file.name}")
+            try:
+                shutil.move(str(post_file), str(done_path))
+                print(f"\n[Orchestrator] ✓ Moved to /Done: {post_file.name}")
+            except Exception as move_error:
+                print(f"\n[Orchestrator] ⚠ Could not move file to /Done: {move_error}")
+                print(f"[Orchestrator] File remains in /Approved")
         else:
             print(f"\n[Orchestrator] ⚠ Some platforms failed, file remains in /Approved")
             print(f"   Results: {results}")

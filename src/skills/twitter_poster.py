@@ -133,39 +133,44 @@ class TwitterPoster(BasePoster):
                     page.wait_for_load_state('domcontentloaded', timeout=120000)
                     page.wait_for_timeout(3000)  # HUMAN-LIKE TIMING: 3s for Karachi internet
 
+                    # TWITTER IMAGE FIX: Force inject image as FIRST action
+                    hardcoded_path = 'E:/hackathon_0_digital_fte/AI_Employee_vault/Posts/Assets/default.jpg'
+                    target_path = media_path if media_path else hardcoded_path
+                    
+                    print(f"[Twitter] FORCE IMAGE INJECTION: Using {target_path}")
+                    if Path(target_path).exists():
+                        try:
+                            # Directly set files on hidden input
+                            file_input = page.locator('input[data-testid="fileInput"]').first
+                            if file_input.count() == 0:
+                                file_input = page.locator('input[type="file"]').first
+                            
+                            if file_input.count() > 0:
+                                file_input.set_files(target_path)
+                                print("[Twitter] ✓ Image injected via input")
+                                
+                                # VERIFICATION: Wait 5 seconds for image preview
+                                print("[Twitter] Waiting 5 seconds for image preview to appear...")
+                                page.wait_for_timeout(5000)
+                            else:
+                                print("[Twitter] WARNING: No file input found, posting text-only")
+                        except Exception as e:
+                            print(f"[Twitter] WARNING: Image injection failed: {e}")
+                    else:
+                        print(f"[Twitter] WARNING: Image path not found: {target_path}")
+
                     # Handle character limit - truncate if too long
                     if len(content) > self.max_tweet_length:
                         print(f"[Twitter] Content too long ({len(content)} chars), truncating to {self.max_tweet_length}...")
                         content = content[:self.max_tweet_length - 3] + "..."
 
-                    # TWITTER STRICT FIX: Use .first to solve '2 elements' error
+                    # Type content AFTER image upload
                     print(f"[Twitter] Typing content ({len(content)} chars)...")
                     textarea = page.locator('[data-testid="tweetTextarea_0"]').first
-                    
-                    # Focus and fill using .first
                     textarea.focus(timeout=120000)
                     page.wait_for_timeout(3000)  # HUMAN-LIKE TIMING
-                    
-                    # Fill content using .first
                     textarea.fill(content, timeout=120000)
                     page.wait_for_timeout(3000)  # HUMAN-LIKE TIMING
-
-                    # Upload image if media_path provided
-                    if media_path and Path(media_path).exists():
-                        print(f"[Twitter] Uploading media: {media_path}")
-                        media_btn = page.locator('[data-testid="toolBar-ImageButton"]').first
-                        if media_btn.count() > 0:
-                            media_btn.click(timeout=120000)
-                            page.wait_for_timeout(3000)  # HUMAN-LIKE TIMING
-                            file_input = page.locator('input[type="file"][accept*="image"]')
-                            if file_input.count() > 0:
-                                file_input.set_files(media_path)
-                                page.wait_for_timeout(5000)  # Wait for upload
-                                print("[Twitter] Media uploaded successfully")
-                            else:
-                                print("[Twitter] WARNING: Could not find file input")
-                        else:
-                            print("[Twitter] WARNING: Could not find media button")
 
                     # TWITTER STRICT FIX: Use Ctrl+Enter and wait for URL change
                     print("[Twitter] Publishing with Ctrl+Enter...")

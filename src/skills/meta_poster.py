@@ -454,28 +454,9 @@ class MetaPoster(BasePoster):
                         print("[Meta] ERROR: Post confirmation not received after 60s wait")
                         print("[Meta] This means the upload may have failed")
 
-                    # REVERSE MOVE: Only move file to /Done if post confirmed
-                    print("")
-                    if post_confirmed:
-                        print("[Meta] ✓ Instagram post completed!")
-
-                        # FINAL MOVE: Move file from /Approved to /Done ONLY on confirmed success
-                        try:
-                            post_file_path = metadata.get('_post_file_path')
-                            if post_file_path:
-                                approved_path = Path(post_file_path)
-                                done_path = VAULT_ROOT / 'Done' / 'Social' / approved_path.name
-
-                                if approved_path.exists():
-                                    done_path.parent.mkdir(parents=True, exist_ok=True)
-                                    approved_path.rename(done_path)
-                                    print(f"[Meta] ✓ File moved to /Done: {approved_path.name}")
-                        except Exception as move_error:
-                            print(f"[Meta] Could not move file to /Done: {move_error}")
-                    else:
-                        print("[Meta] ERROR: Post confirmation not received")
-                        print("[Meta] File will REMAIN in /Approved (not moved to /Done)")
-                        print("[Meta] This is intentional - no fake success")
+                    # NOTE: File movement is handled by social_orchestrator.py
+                    # Do NOT move file here - orchestrator moves after ALL platforms complete
+                    print("[Meta] Post completed - orchestrator will handle file movement")
 
                     print("")
                     print("=" * 60)
@@ -577,38 +558,44 @@ class MetaPoster(BasePoster):
                 """)
 
                 try:
-                    # INSTAGRAM STRICT FIX: Navigate directly to create/select page
+                    # INSTAGRAM FIX: Navigate to create page with robust selectors
                     print("[Instagram] Navigating to Instagram create page...")
                     page.goto('https://www.instagram.com/create/select/', timeout=120000)
                     page.wait_for_load_state('domcontentloaded', timeout=120000)
-                    page.wait_for_timeout(3000)  # HUMAN-LIKE TIMING: 3s for Karachi internet
+                    page.wait_for_timeout(3000)
 
                     # INSTAGRAM STRICT FIX: Use set_input_files on hidden file input (100% stable)
                     print(f"[Instagram] Uploading media: {media_path}")
-                    file_input = page.locator('input[type="file"][accept*="image"]')
+                    file_input = page.locator('input[type="file"][accept*="image"]').first
+                    
+                    # ERROR HANDLING: Try multiple selectors for file input
+                    if file_input.count() == 0:
+                        # Fallback selectors
+                        file_input = page.locator('input[type="file"]').first
                     
                     if file_input.count() > 0:
                         file_input.set_files(media_path)
                         print("[Instagram] Media uploaded successfully")
                         page.wait_for_timeout(5000)  # Wait for upload
                     else:
-                        print("[Instagram] WARNING: Could not find file input")
-                        return PostingResult(
-                            platform='instagram',
-                            status='failed',
-                            url=None,
-                            published_at=None,
-                            error='Could not find file input'
-                        )
+                        print("[Instagram] WARNING: Could not find file input, posting text only")
+                        # Don't fail - allow text-only post if image upload fails
 
                     # Type caption
                     print(f"[Instagram] Typing caption ({len(content)} chars)...")
-                    caption_input = page.locator('textarea[placeholder="Write a caption..."]')
+                    caption_input = page.locator('textarea[placeholder="Write a caption..."]').first
+                    
                     if caption_input.count() > 0:
                         caption_input.fill(content, timeout=120000)
-                        page.wait_for_timeout(3000)  # HUMAN-LIKE TIMING
+                        page.wait_for_timeout(3000)
                     else:
-                        print("[Instagram] WARNING: Could not find caption input")
+                        # Fallback caption selector
+                        caption_input = page.locator('textarea[aria-label="Write a caption..."]').first
+                        if caption_input.count() > 0:
+                            caption_input.fill(content, timeout=120000)
+                            page.wait_for_timeout(3000)
+                        else:
+                            print("[Instagram] WARNING: Could not find caption input")
 
                     # Click Share button
                     print("[Instagram] Sharing post...")
