@@ -454,28 +454,9 @@ class MetaPoster(BasePoster):
                         print("[Meta] ERROR: Post confirmation not received after 60s wait")
                         print("[Meta] This means the upload may have failed")
 
-                    # REVERSE MOVE: Only move file to /Done if post confirmed
-                    print("")
-                    if post_confirmed:
-                        print("[Meta] ✓ Instagram post completed!")
-
-                        # FINAL MOVE: Move file from /Approved to /Done ONLY on confirmed success
-                        try:
-                            post_file_path = metadata.get('_post_file_path')
-                            if post_file_path:
-                                approved_path = Path(post_file_path)
-                                done_path = VAULT_ROOT / 'Done' / 'Social' / approved_path.name
-
-                                if approved_path.exists():
-                                    done_path.parent.mkdir(parents=True, exist_ok=True)
-                                    approved_path.rename(done_path)
-                                    print(f"[Meta] ✓ File moved to /Done: {approved_path.name}")
-                        except Exception as move_error:
-                            print(f"[Meta] Could not move file to /Done: {move_error}")
-                    else:
-                        print("[Meta] ERROR: Post confirmation not received")
-                        print("[Meta] File will REMAIN in /Approved (not moved to /Done)")
-                        print("[Meta] This is intentional - no fake success")
+                    # NOTE: File movement is handled by social_orchestrator.py
+                    # Do NOT move file here - orchestrator moves after ALL platforms complete
+                    print("[Meta] Post completed - orchestrator will handle file movement")
 
                     print("")
                     print("=" * 60)
