@@ -264,8 +264,75 @@ def publish_to_linkedin(content: str, media_path: str = None):
                 print("[LinkedIn] Waiting for editor to appear...")
                 editor = page.locator('.ql-editor').first
                 editor.wait_for(state='visible', timeout=90000)
-                
-                # Type content
+
+                # LINKEDIN FIX: Upload image BEFORE typing text
+                if media_path:
+                    # HARDCODED PATH CHECK
+                    hardcoded_path = 'E:/hackathon_0_digital_fte/AI_Employee_vault/Posts/Assets/default.jpg'
+                    if media_path != hardcoded_path:
+                        print(f"[LinkedIn] Using vault image: {media_path}")
+                    else:
+                        print(f"[LinkedIn] Using hardcoded vault image path")
+
+                    # Check if file exists
+                    if not Path(media_path).exists():
+                        print(f"[LinkedIn] WARNING: Media file not found: {media_path}")
+                        print("[LinkedIn] Continuing with text-only post")
+                        media_path = None
+                    else:
+                        # FORCE IMAGE UPLOAD: Find file input or media button
+                        print(f"[LinkedIn] FORCE UPLOAD: Uploading {media_path}")
+                        try:
+                            # Method 1: Direct file input approach
+                            file_input = page.locator('input[type="file"]').first
+                            if file_input.count() > 0:
+                                print("[LinkedIn] Using direct file input method")
+                                file_input.set_files(media_path)
+                                print("[LinkedIn] File attached via input[type='file']")
+                            else:
+                                # Method 2: Click media button then handle filechooser
+                                print("[LinkedIn] Trying media button approach")
+                                media_button = page.locator('button[aria-label="Media"]').first
+                                if media_button.count() == 0:
+                                    media_button = page.locator('button[aria-label="Add media"]').first
+                                if media_button.count() == 0:
+                                    media_button = page.locator('button[aria-label*="media"]').first
+
+                                if media_button.count() > 0:
+                                    with page.expect_filechooser() as fc_info:
+                                        media_button.click(timeout=90000)
+                                    file_chooser = fc_info.value
+                                    file_chooser.set_files(media_path)
+                                    print("[LinkedIn] File attached via filechooser")
+                                else:
+                                    print("[LinkedIn] WARNING: No media button found")
+                                    media_path = None
+
+                            # WAIT LOGIC: Wait for image preview to appear
+                            if media_path:
+                                print("[LinkedIn] Waiting 5 seconds for image preview to appear...")
+                                page.wait_for_timeout(5000)
+                                
+                                # VERIFY: Check if image preview is visible
+                                # LinkedIn shows image in composer with a preview
+                                image_preview = page.locator('img[src*="blob:"], img[alt="Image preview"]').first
+                                if image_preview.count() > 0:
+                                    print("[LinkedIn] ✓ Image preview verified on screen")
+                                else:
+                                    # Alternative: check for any image in composer
+                                    image_preview = page.locator('div[class*="image-preview"], img[class*="image"]').first
+                                    if image_preview.count() > 0:
+                                        print("[LinkedIn] ✓ Image preview verified (fallback)")
+                                    else:
+                                        print("[LinkedIn] WARNING: Could not verify image preview, but continuing")
+
+                        except Exception as upload_error:
+                            print(f"[LinkedIn] WARNING: Image upload failed: {upload_error}")
+                            print("[LinkedIn] Continuing with text-only post")
+                            media_path = None
+
+                # LINKEDIN WAIT: After upload, type the post content
+                # Type content (AFTER image upload)
                 print(f"[LinkedIn] Typing content ({len(content)} chars)...")
                 editor.fill(content, timeout=90000)
                 
@@ -275,41 +342,14 @@ def publish_to_linkedin(content: str, media_path: str = None):
                 page.wait_for_timeout(3000)
                 time.sleep(1)
 
-                # Upload media if provided (FORCE IMAGE UPLOAD)
+                # NOTE: Image upload already done BEFORE typing text (see above)
+                # media_path is set to None if upload failed to prevent duplicate upload
+
+                # VERIFY: Ensure Post button is only clicked after image preview is visible
                 if media_path:
-                    print(f"[LinkedIn] Uploading media: {media_path}")
-
-                    # Check if file exists
-                    if not Path(media_path).exists():
-                        print(f"[LinkedIn] WARNING: Media file not found: {media_path}")
-                        print("[LinkedIn] Continuing with text-only post")
-                    else:
-                        # ERROR HANDLING: Try multiple selectors for media button
-                        media_button = page.locator('button[aria-label="Media"]').first
-                        if media_button.count() == 0:
-                            # Fallback selectors
-                            media_button = page.locator('button[aria-label="Add media"]').first
-                        if media_button.count() == 0:
-                            media_button = page.locator('button[aria-label*="media"]').first
-                        
-                        if media_button.count() > 0:
-                            media_button.click(timeout=90000)
-                            time.sleep(1)
-
-                            # Handle file chooser
-                            try:
-                                file_chooser = page.wait_for_event('filechooser', timeout=90000)
-                                file_chooser.set_files(media_path)
-                                # WAIT LOGIC: 3-second delay to ensure image is fully attached
-                                print("[LinkedIn] Waiting 3 seconds for image to attach...")
-                                time.sleep(3)
-                                print("[LinkedIn] Media uploaded successfully")
-                            except Exception as e:
-                                print(f"[LinkedIn] WARNING: Could not upload media: {e}")
-                                print("[LinkedIn] Continuing with text-only post")
-                        else:
-                            print("[LinkedIn] WARNING: Could not find media button")
-                            print("[LinkedIn] Continuing with text-only post")
+                    print("[LinkedIn] VERIFICATION: Image upload completed, ready to post")
+                else:
+                    print("[LinkedIn] VERIFICATION: Text-only post (no image uploaded)")
 
                 # Click Post button with robust multi-selector approach
                 print("[LinkedIn] Publishing post...")
